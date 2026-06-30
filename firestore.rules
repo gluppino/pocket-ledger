@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isMember(familyId) {
+      return isSignedIn() && userDoc().data.familyId == familyId;
+    }
+
+    function isParent(familyId) {
+      return isMember(familyId) && userDoc().data.role == 'parent';
+    }
+
+    // inviteCodes/{code} -> { familyId }
+    // Public read so a not-yet-signed-up family member can look up which
+    // family an invite code belongs to. Contains no private data.
+    match /inviteCodes/{code} {
+      allow read: if true;
+      allow create: if isSignedIn();
+    }
+
+    // users/{uid} -> { familyId, role }
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /families/{familyId} {
+      allow read: if isMember(familyId);
+      // Family doc itself is created once by whoever starts the family.
+      allow create: if isSignedIn();
+      allow update: if isParent(familyId);
+
+      match /members/{memberUid} {
+        allow read: if isMember(familyId);
+        allow create: if isSignedIn() && request.auth.uid == memberUid;
+        allow update, delete: if isParent(familyId);
+      }
+
+      match /chores/{choreId} {
+        allow read: if isMember(familyId);
+        allow create, update, delete: if isParent(familyId);
+      }
+
+      match /ledger/{entryId} {
+        allow read: if isMember(familyId);
+        // Kids can create pending chore entries; only parents approve/edit/delete.
+        allow create: if isMember(familyId);
+        allow update, delete: if isParent(familyId);
+      }
+
+      match /requests/{requestId} {
+        allow read: if isMember(familyId);
+        allow create: if isMember(familyId);
+        allow update, delete: if isParent(familyId);
+      }
+
+      match /goal/{docId} {
+        allow read: if isMember(familyId);
+        allow write: if isParent(familyId);
+      }
+    }
+  }
+}

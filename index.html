@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pocket Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loading" class="loading-screen">Loading…</div>
+
+  <div id="screen-welcome" class="auth-screen hide">
+    <p class="auth-logo">Pocket Ledger</p>
+    <p class="auth-tag">Chores, allowance, and saving goals — kept in sync for the whole family.</p>
+    <div class="choice-row">
+      <button class="choice-btn" id="nav-create">
+        <i class="ti ti-home-plus"></i>
+        <b>Create a new family</b>
+        <span>Start here if this is the first account for your household.</span>
+      </button>
+      <button class="choice-btn" id="nav-join">
+        <i class="ti ti-user-plus"></i>
+        <b>Join a family</b>
+        <span>Use an invite code from a parent who's already set things up.</span>
+      </button>
+      <button class="choice-btn" id="nav-login">
+        <i class="ti ti-login"></i>
+        <b>Log in</b>
+        <span>Already have an account.</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="screen-create-family" class="auth-screen hide">
+    <p class="auth-logo">Pocket Ledger</p>
+    <div class="auth-card">
+      <h2>Create your family</h2>
+      <p class="sub">This makes you the first parent account. You'll get an invite code afterward to add your spouse and kids.</p>
+      <div id="create-family-error" class="error-msg hide"></div>
+      <form id="create-family-form">
+        <div class="field"><label>Family name</label><input name="familyName" placeholder="The Smiths" required /></div>
+        <div class="field"><label>Your name</label><input name="parentName" required /></div>
+        <div class="field"><label>Email</label><input name="email" type="email" required /></div>
+        <div class="field"><label>Password</label><input name="password" type="password" minlength="6" required /></div>
+        <button class="btn full" type="submit">Create family</button>
+      </form>
+    </div>
+    <button class="link-btn back-to-welcome">Back</button>
+  </div>
+
+  <div id="screen-join-family" class="auth-screen hide">
+    <p class="auth-logo">Pocket Ledger</p>
+    <div class="auth-card">
+      <h2>Join a family</h2>
+      <p class="sub">Ask whoever set up the family for the invite code, found in their Settings tab.</p>
+      <div id="join-family-error" class="error-msg hide"></div>
+      <div class="role-pick">
+        <button type="button" class="join-role-btn active" data-role="parent">Parent</button>
+        <button type="button" class="join-role-btn" data-role="kid">Kid</button>
+      </div>
+      <form id="join-family-form">
+        <div class="field"><label>Invite code</label><input name="inviteCode" required style="text-transform:uppercase" /></div>
+        <div class="field"><label>Your name</label><input name="name" required /></div>
+        <div id="join-parent-fields">
+          <div class="field"><label>Email</label><input name="email" type="email" /></div>
+        </div>
+        <div id="join-kid-fields" class="hide">
+          <div class="field"><label>Pick a username</label><input name="username" placeholder="No email needed" /></div>
+        </div>
+        <div class="field"><label>Password</label><input name="password" type="password" minlength="6" required /></div>
+        <button class="btn full" type="submit">Join family</button>
+      </form>
+    </div>
+    <button class="link-btn back-to-welcome">Back</button>
+  </div>
+
+  <div id="screen-login" class="auth-screen hide">
+    <p class="auth-logo">Pocket Ledger</p>
+    <div class="auth-card">
+      <h2>Log in</h2>
+      <p class="sub">&nbsp;</p>
+      <div id="login-error" class="error-msg hide"></div>
+      <div class="role-pick">
+        <button type="button" class="login-role-btn active" data-role="parent">Parent</button>
+        <button type="button" class="login-role-btn" data-role="kid">Kid</button>
+      </div>
+      <form id="login-form">
+        <div id="login-parent-fields">
+          <div class="field"><label>Email</label><input name="email" type="email" /></div>
+        </div>
+        <div id="login-kid-fields" class="hide">
+          <div class="field"><label>Invite code</label><input name="inviteCode" style="text-transform:uppercase" /></div>
+          <div class="field"><label>Username</label><input name="username" /></div>
+        </div>
+        <div class="field"><label>Password</label><input name="password" type="password" required /></div>
+        <button class="btn full" type="submit">Log in</button>
+      </form>
+    </div>
+    <button class="link-btn back-to-welcome">Back</button>
+  </div>
+
+  <div id="screen-app" class="hide">
+    <div id="app-root"></div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

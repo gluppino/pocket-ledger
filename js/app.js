@@ -148,9 +148,17 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   showScreen("loading");
+  // On fresh signup, the auth account exists a beat before the Firestore
+  // profile doc does (createFamily/joinFamily write it after auth succeeds).
+  // Retry briefly instead of bailing to the welcome screen on the first miss.
   profile = await getUserProfile(user.uid);
+  for(let attempt=0; !profile && attempt<10; attempt++){
+    await new Promise(r=>setTimeout(r, 300));
+    profile = await getUserProfile(user.uid);
+  }
   if(!profile){
     showScreen("screen-welcome");
+    showToast("Account created, but profile setup didn't finish. Try logging in again.");
     return;
   }
   attachListeners(profile.familyId);

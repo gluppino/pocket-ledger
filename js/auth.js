@@ -91,17 +91,22 @@ export async function claimKidProfile(name, inviteCode){
 
   const membersRef = collection(db, "families", familyId, "members");
   const kidsSnap = await getDocs(query(membersRef, where("role", "==", "kid")));
-  const match = kidsSnap.docs.find(d => (d.data().name || "").trim().toLowerCase() === nameLower);
+  const match = kidsSnap.docs.find(d =>
+    !d.data().archived && (d.data().name || "").trim().toLowerCase() === nameLower
+  );
 
+  let kidId;
   if(match){
-    await updateDoc(doc(db, "families", familyId, "members", match.id), { claimedUid: uid });
+    kidId = match.id;
+    await updateDoc(doc(db, "families", familyId, "members", kidId), { claimedUid: uid });
   } else {
-    await setDoc(doc(db, "families", familyId, "members", uid), {
-      name: nameTrim, role: "kid", claimedUid: uid
+    kidId = uid;
+    await setDoc(doc(db, "families", familyId, "members", kidId), {
+      name: nameTrim, role: "kid", claimedUid: uid, archived: false
     });
   }
-  await setDoc(doc(db, "users", uid), { familyId, role: "kid", name: nameTrim });
-  return { familyId, uid };
+  await setDoc(doc(db, "users", uid), { familyId, role: "kid", name: nameTrim, kidId });
+  return { familyId, uid, kidId };
 }
 
 export async function getUserProfile(uid){

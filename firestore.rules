@@ -57,39 +57,56 @@ service cloud.firestore {
         // user so a kid claiming their profile by name + join code can find
         // it before they're a member. Accepted tradeoff: knowing a family's
         // join code lets you see that family's kid names, same trust level
-        // as the join code itself.
+        // as the join code itself. Archived kids are excluded so they can't
+        // be discovered/re-claimed by name once aged out.
         allow read: if isMember(familyId)
-          || (isSignedIn() && resource.data.role == 'kid');
-        allow create: if isSignedIn() && request.auth.uid == memberUid;
+          || (isSignedIn() && resource.data.role == 'kid' && resource.data.archived != true);
+        // A kid can create their own record (self-claim first-time flow).
+        // A parent can also create a kid record directly (the "add kid"
+        // flow, pre-provisioning a profile before the kid ever claims it) —
+        // scoped to role=='kid' so this can't be used to mint parent records.
+        allow create: if (isSignedIn() && request.auth.uid == memberUid)
+          || (isParent(familyId) && request.resource.data.role == 'kid');
         // A parent can edit/remove members normally. A kid-claim (anonymous
         // or otherwise) may only ever touch the `claimedUid` pointer on an
-        // existing kid record — never role, name, or anything else.
+        // existing, non-archived kid record — never role, name, or anything
+        // else, and never once archived (aged-out kids can't reclaim).
         allow update: if isParent(familyId)
-          || (isSignedIn() && resource.data.role == 'kid'
+          || (isSignedIn() && resource.data.role == 'kid' && resource.data.archived != true
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedUid']));
         allow delete: if isParent(familyId);
       }
 
       match /chores/{choreId} {
-        allow read: if isMember(familyId);
+        // Parent sees/manages every kid's chores; a kid only ever sees their own.
+        allow read: if isParent(familyId)
+          || (isMember(familyId) && resource.data.kidId == userDoc().data.kidId);
         allow create, update, delete: if isParent(familyId);
       }
 
       match /ledger/{entryId} {
-        allow read: if isMember(familyId);
-        // Kids can create pending chore entries; only parents approve/edit/delete.
-        allow create: if isMember(familyId);
+        allow read: if isParent(familyId)
+          || (isMember(familyId) && resource.data.kidId == userDoc().data.kidId);
+        // Kids can create pending chore entries, but only tagged with their
+        // own kidId; only parents approve/edit/delete.
+        allow create: if isParent(familyId)
+          || (isMember(familyId) && userDoc().data.role == 'kid'
+              && request.resource.data.kidId == userDoc().data.kidId);
         allow update, delete: if isParent(familyId);
       }
 
       match /requests/{requestId} {
-        allow read: if isMember(familyId);
-        allow create: if isMember(familyId);
+        allow read: if isParent(familyId)
+          || (isMember(familyId) && resource.data.kidId == userDoc().data.kidId);
+        allow create: if isParent(familyId)
+          || (isMember(familyId) && userDoc().data.role == 'kid'
+              && request.resource.data.kidId == userDoc().data.kidId);
         allow update, delete: if isParent(familyId);
       }
 
-      match /goal/{docId} {
-        allow read: if isMember(familyId);
+      match /goal/{kidId} {
+        allow read: if isParent(familyId)
+          || (isMember(familyId) && kidId == userDoc().data.kidId);
         allow write: if isParent(familyId);
       }
     }

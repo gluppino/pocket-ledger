@@ -7,7 +7,8 @@ import {
   query, orderBy, getDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
-  createFamily, joinFamily, loginParent, loginKid, logout, getUserProfile
+  createFamily, joinFamily, loginParent, logout, getUserProfile,
+  ensureParentLookup, requestPasswordReset, claimKidProfile
 } from "./auth.js";
 
 const $ = (id) => document.getElementById(id);
@@ -21,6 +22,7 @@ let goal = { name:"", target:0, saved:0 };
 let unsubs = [];
 let activeTab = "chores";
 let lastJoinRole = "parent";
+let pendingKidSwitch = false;
 
 function showToast(msg){
   const t = $("toast");
@@ -44,7 +46,7 @@ function todayStr(){
 function uid(){ return Math.random().toString(36).slice(2,9); }
 
 function showScreen(id){
-  ["loading","screen-welcome","screen-create-family","screen-join-family","screen-login","screen-app"]
+  ["loading","screen-welcome","screen-create-family","screen-join-family","screen-login","screen-forgot-password","screen-app"]
     .forEach(s => $(s).classList.toggle("hide", s !== id));
 }
 
@@ -78,7 +80,9 @@ document.querySelectorAll(".join-role-btn").forEach(btn=>{
     lastJoinRole = btn.dataset.role;
     document.querySelectorAll(".join-role-btn").forEach(b=>b.classList.toggle("active", b===btn));
     $("join-parent-fields").classList.toggle("hide", lastJoinRole!=="parent");
-    $("join-kid-fields").classList.toggle("hide", lastJoinRole!=="kid");
+    $("join-kid-note").classList.toggle("hide", lastJoinRole!=="kid");
+    const pwInput = $("join-family-form").password;
+    pwInput.required = lastJoinRole === "parent";
   };
 });
 
@@ -87,42 +91,48 @@ $("join-family-form").onsubmit = async (e) => {
   const f = e.target;
   $("join-family-error").classList.add("hide");
   try{
-    await joinFamily({
-      inviteCode: f.inviteCode.value.trim(),
-      role: lastJoinRole,
-      name: f.name.value.trim(),
-      email: lastJoinRole==="parent" ? f.email.value.trim() : undefined,
-      username: lastJoinRole==="kid" ? f.username.value.trim() : undefined,
-      password: f.password.value
-    });
-    showToast("Welcome to the family");
+    if(lastJoinRole === "parent"){
+      await joinFamily({
+        inviteCode: f.inviteCode.value.trim(),
+        name: f.name.value.trim(),
+        email: f.email.value.trim(),
+        password: f.password.value
+      });
+      showToast("Welcome to the family");
+    } else {
+      await claimKidProfile(f.name.value.trim(), f.inviteCode.value.trim());
+      showToast("Welcome!");
+    }
   }catch(err){
     $("join-family-error").textContent = friendlyError(err);
     $("join-family-error").classList.remove("hide");
   }
 };
 
-document.querySelectorAll(".login-role-btn").forEach(btn=>{
-  btn.onclick = () => {
-    document.querySelectorAll(".login-role-btn").forEach(b=>b.classList.toggle("active", b===btn));
-    const role = btn.dataset.role;
-    $("login-parent-fields").classList.toggle("hide", role!=="parent");
-    $("login-kid-fields").classList.toggle("hide", role!=="kid");
-    $("login-form").dataset.role = role;
-  };
-});
-$("login-form").dataset.role = "parent";
+$("nav-forgot-password").onclick = () => showScreen("screen-forgot-password");
+
+$("forgot-password-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  $("forgot-password-error").classList.add("hide");
+  $("forgot-password-success").classList.add("hide");
+  try{
+    await requestPasswordReset(f.email.value.trim(), f.inviteCode.value.trim());
+    $("forgot-password-success").textContent = "Check your email for a link to set a new password.";
+    $("forgot-password-success").classList.remove("hide");
+    f.reset();
+  }catch(err){
+    $("forgot-password-error").textContent = friendlyError(err);
+    $("forgot-password-error").classList.remove("hide");
+  }
+};
 
 $("login-form").onsubmit = async (e) => {
   e.preventDefault();
   const f = e.target;
   $("login-error").classList.add("hide");
   try{
-    if(f.dataset.role === "parent"){
-      await loginParent(f.email.value.trim(), f.password.value);
-    } else {
-      await loginKid(f.inviteCode.value.trim(), f.username.value.trim(), f.password.value);
-    }
+    await loginParent(f.email.value.trim(), f.password.value);
   }catch(err){
     $("login-error").textContent = friendlyError(err);
     $("login-error").classList.remove("hide");
@@ -135,6 +145,7 @@ function friendlyError(err){
   if(code.includes("user-not-found")) return "No account found with those details.";
   if(code.includes("email-already-in-use")) return "An account already exists with that email.";
   if(code.includes("weak-password")) return "Password should be at least 6 characters.";
+  if(code.includes("admin-restricted-operation")) return "Kid sign-in isn't turned on yet — ask a parent to enable Anonymous sign-in in Firebase.";
   return err.message || "Something went wrong. Try again.";
 }
 
@@ -144,7 +155,13 @@ onAuthStateChanged(auth, async (user) => {
   cleanupListeners();
   if(!user){
     profile = null;
-    showScreen("screen-welcome");
+    if(pendingKidSwitch){
+      pendingKidSwitch = false;
+      showScreen("screen-join-family");
+      document.querySelector('.join-role-btn[data-role="kid"]').click();
+    } else {
+      showScreen("screen-welcome");
+    }
     return;
   }
   showScreen("loading");
@@ -163,6 +180,7 @@ onAuthStateChanged(auth, async (user) => {
   }
   attachListeners(profile.familyId);
   showScreen("screen-app");
+  if(profile.role === "parent") ensureParentLookup(user.uid, profile.familyId);
 });
 
 function cleanupListeners(){
@@ -223,6 +241,11 @@ function availableToSpend(){
 
 window.appActions = {
   signOut: () => logout(),
+
+  switchKid: () => {
+    pendingKidSwitch = true;
+    return logout();
+  },
 
   setTab: (t) => { activeTab = t; render(); },
 
@@ -343,6 +366,7 @@ function render(){
         </div>
       </div>
       <div class="signout-row">
+        ${profile.role==="kid" ? `<button class="signout-btn" onclick="appActions.switchKid()">Not you? Switch kid</button>` : ""}
         <button class="signout-btn" onclick="appActions.signOut()">Sign out</button>
       </div>
     </div>

@@ -69,11 +69,9 @@
         <div class="field"><label>Your name</label><input name="name" required /></div>
         <div id="join-parent-fields">
           <div class="field"><label>Email</label><input name="email" type="email" /></div>
+          <div class="field"><label>Password</label><input name="password" type="password" minlength="6" required /></div>
         </div>
-        <div id="join-kid-fields" class="hide">
-          <div class="field"><label>Pick a username</label><input name="username" placeholder="No email needed" /></div>
-        </div>
-        <div class="field"><label>Password</label><input name="password" type="password" minlength="6" required /></div>
+        <p id="join-kid-note" class="sub hide" style="margin:-6px 0 14px">No password needed &mdash; just your name and the join code. Whoever set this up can tell you both.</p>
         <button class="btn full" type="submit">Join family</button>
       </form>
     </div>
@@ -84,22 +82,29 @@
     <p class="auth-logo">Pocket Ledger</p>
     <div class="auth-card">
       <h2>Log in</h2>
-      <p class="sub">&nbsp;</p>
+      <p class="sub">Parents log in here. Kids just open the app &mdash; use "Join a family" with your name and join code if you're on a new device.</p>
       <div id="login-error" class="error-msg hide"></div>
-      <div class="role-pick">
-        <button type="button" class="login-role-btn active" data-role="parent">Parent</button>
-        <button type="button" class="login-role-btn" data-role="kid">Kid</button>
-      </div>
       <form id="login-form">
-        <div id="login-parent-fields">
-          <div class="field"><label>Email</label><input name="email" type="email" /></div>
-        </div>
-        <div id="login-kid-fields" class="hide">
-          <div class="field"><label>Invite code</label><input name="inviteCode" style="text-transform:uppercase" /></div>
-          <div class="field"><label>Username</label><input name="username" /></div>
-        </div>
+        <div class="field"><label>Email</label><input name="email" type="email" /></div>
         <div class="field"><label>Password</label><input name="password" type="password" required /></div>
         <button class="btn full" type="submit">Log in</button>
+      </form>
+      <button type="button" class="link-btn" id="nav-forgot-password">Forgot password?</button>
+    </div>
+    <button class="link-btn back-to-welcome">Back</button>
+  </div>
+
+  <div id="screen-forgot-password" class="auth-screen hide">
+    <p class="auth-logo">Pocket Ledger</p>
+    <div class="auth-card">
+      <h2>Reset your password</h2>
+      <p class="sub">Enter your registered email and your family's join code. If they match, we'll email you a link to set a new password.</p>
+      <div id="forgot-password-error" class="error-msg hide"></div>
+      <div id="forgot-password-success" class="success-msg hide"></div>
+      <form id="forgot-password-form">
+        <div class="field"><label>Email</label><input name="email" type="email" required /></div>
+        <div class="field"><label>Family join code</label><input name="inviteCode" required style="text-transform:uppercase" /></div>
+        <button class="btn full" type="submit">Send reset link</button>
       </form>
     </div>
     <button class="link-btn back-to-welcome">Back</button>

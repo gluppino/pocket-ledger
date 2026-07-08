@@ -56,6 +56,10 @@ body{
   background:var(--destructive-bg);color:var(--destructive);font-size:12px;padding:10px 12px;
   border-radius:var(--radius);margin-bottom:12px;border:1px solid #FECACA;
 }
+.success-msg{
+  background:#F0FDF4;color:#15803D;font-size:12px;padding:10px 12px;
+  border-radius:var(--radius);margin-bottom:12px;border:1px solid #BBF7D0;
+}
 .invite-code{
   font-family:'IBM Plex Mono',monospace;font-size:22px;letter-spacing:3px;
   background:var(--muted);border:1px dashed var(--border);border-radius:var(--radius);
@@ -76,7 +80,7 @@ body{
 .cover-name b{color:var(--fg);font-weight:600;}
 .balance-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-fg);margin:0 0 2px;}
 .balance-amt{font-family:'Inter',sans-serif;font-size:32px;font-weight:600;line-height:1;color:var(--fg);}
-.signout-row{margin-top:16px;}
+.signout-row{margin-top:16px;display:flex;gap:8px;}
 .signout-btn{
   font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;
   background:none;border:1px solid var(--border);color:var(--muted-fg);

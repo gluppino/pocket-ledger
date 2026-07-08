@@ -27,6 +27,18 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    // parentLookup/{emailLowercased} -> { familyId }
+    // Public read so a signed-out parent doing "forgot password" can verify
+    // their email + join code belong to the same family before we trigger
+    // Firebase's built-in reset email. Contains no private data (mirrors
+    // inviteCodes above). Write is allowed for any signed-in user since a
+    // mismatched/malicious write only affects which address a standard
+    // Firebase reset email might later be sent to, not account access.
+    match /parentLookup/{email} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
     // users/{uid} -> { familyId, role }
     match /users/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
@@ -41,9 +53,21 @@ service cloud.firestore {
       allow update: if isParent(familyId);
 
       match /members/{memberUid} {
-        allow read: if isMember(familyId);
+        // Kid records are also readable by any signed-in (incl. anonymous)
+        // user so a kid claiming their profile by name + join code can find
+        // it before they're a member. Accepted tradeoff: knowing a family's
+        // join code lets you see that family's kid names, same trust level
+        // as the join code itself.
+        allow read: if isMember(familyId)
+          || (isSignedIn() && resource.data.role == 'kid');
         allow create: if isSignedIn() && request.auth.uid == memberUid;
-        allow update, delete: if isParent(familyId);
+        // A parent can edit/remove members normally. A kid-claim (anonymous
+        // or otherwise) may only ever touch the `claimedUid` pointer on an
+        // existing kid record — never role, name, or anything else.
+        allow update: if isParent(familyId)
+          || (isSignedIn() && resource.data.role == 'kid'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedUid']));
+        allow delete: if isParent(familyId);
       }
 
       match /chores/{choreId} {

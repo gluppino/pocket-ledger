@@ -69,7 +69,14 @@ service cloud.firestore {
         // Parent sees/manages every kid's chores; a kid only ever sees their own.
         allow read: if isParent(familyId)
           || (isMember(familyId) && resource.data.kidId == userDoc().data.kidId);
-        allow create, update, delete: if isParent(familyId);
+        allow create, delete: if isParent(familyId);
+        // A kid may check/uncheck only their own chore's `done` flag — title,
+        // kidId, and anything else stay parent-only (mirrors the members
+        // claimedUid pattern above).
+        allow update: if isParent(familyId)
+          || (isMember(familyId) && userDoc().data.role == 'kid'
+              && resource.data.kidId == userDoc().data.kidId
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']));
       }
 
       match /ledger/{entryId} {

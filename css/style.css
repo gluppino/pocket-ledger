@@ -120,6 +120,10 @@ p.sub{font-size:13px;color:var(--muted-fg);margin:0 0 16px;line-height:1.5;}
 .chore-info{flex:1;}
 .chore-title{font-size:14px;font-weight:500;margin:0;color:var(--fg);}
 .chore-amt{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--fg);margin:2px 0 0;}
+.chore-check{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;}
+.chore-check input[type="checkbox"]{width:20px;height:20px;flex:0 0 20px;accent-color:var(--fg);cursor:pointer;}
+.chore-check input[type="checkbox"]:disabled{cursor:default;opacity:0.6;}
+.chore-title.done{color:var(--muted-fg);text-decoration:line-through;}
 
 .btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:10px 16px;border-radius:var(--radius);border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer;transition:opacity 0.15s ease,background-color 0.15s ease;}
 .btn:hover{opacity:0.85;}
@@ -179,8 +183,8 @@ input:focus,select:focus{outline:none;border-color:var(--fg);box-shadow:0 0 0 3p
 .form-row > *{flex:1;}
 .field{margin-bottom:14px;}
 .add-chore-form{display:flex;gap:8px;margin-top:16px;}
-.add-chore-form input:first-of-type{flex:1;min-width:0;}
-.add-chore-form input:last-of-type{flex:1;min-width:0;text-align:right;}
+.add-chore-form input{flex:1;min-width:0;}
+#bonusAmt{text-align:right;}
 
 .section-divider{margin:28px 0 16px;padding-top:16px;border-top:1px solid var(--border);}
 

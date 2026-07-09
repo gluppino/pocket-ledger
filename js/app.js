@@ -340,16 +340,42 @@ window.appActions = {
     }
   },
 
-  markDone: async (choreId) => {
+  toggleChore: async (choreId) => {
     const chore = chores.find(c=>c.id===choreId);
-    if(!chore) return;
+    if(!chore || profile.role!=="kid" || chore.kidId !== profile.kidId) return;
+    await updateDoc(doc(db,"families",profile.familyId,"chores",choreId), { done: !chore.done });
+    haptic(10);
+  },
+
+  submitWeek: async () => {
+    const kidId = currentKidId();
+    if(!kidId) return;
+    const kidChoresArr = chores.filter(c=>c.kidId===kidId);
+    if(kidChoresArr.length===0 || !kidChoresArr.every(c=>c.done)) return;
+    const kidObj = kids.find(k=>k.id===kidId) || {};
+    const amount = Number(kidObj.weeklyAmount) || 0;
+    if(amount<=0) return;
+    const alreadyPending = ledger.some(e=>e.kidId===kidId && e.type==="chore" && e.status==="pending");
+    if(alreadyPending) return;
     await addDoc(collection(db,"families",profile.familyId,"ledger"), {
-      type:"chore", desc:chore.title, amount:chore.amount, status:"pending",
-      date: todayStr(), createdAt: Date.now(), kidId: chore.kidId
+      type:"chore", desc:"Weekly chores complete", amount, status:"pending",
+      date: todayStr(), createdAt: Date.now(), kidId
     });
     confettiBurst();
     haptic(15);
     showToast("Sent for approval");
+  },
+
+  resetWeek: async () => {
+    const kidId = currentKidId();
+    if(!kidId) return;
+    const kidChoresArr = chores.filter(c=>c.kidId===kidId);
+    if(kidChoresArr.length===0) return;
+    if(!confirm("Reset all chores for a new week? This clears every checkmark.")) return;
+    await Promise.all(kidChoresArr.map(c=>
+      updateDoc(doc(db,"families",profile.familyId,"chores",c.id), { done:false })
+    ));
+    showToast("Week reset");
   },
 
   approveEntry: async (id) => {
@@ -366,11 +392,10 @@ window.appActions = {
 
   addChore: async () => {
     const title = $("newChoreTitle").value.trim();
-    const amount = Number($("newChoreAmt").value);
     const kidId = currentKidId();
-    if(!title || !amount || amount<=0 || !kidId) return;
-    await addDoc(collection(db,"families",profile.familyId,"chores"), { title, amount, kidId });
-    $("newChoreTitle").value=""; $("newChoreAmt").value="";
+    if(!title || !kidId) return;
+    await addDoc(collection(db,"families",profile.familyId,"chores"), { title, kidId, done:false });
+    $("newChoreTitle").value="";
   },
   removeChore: async (id) => {
     const c = chores.find(x=>x.id===id);
@@ -459,6 +484,13 @@ window.appActions = {
     const phone = $("setKidPhone").value.trim();
     await updateDoc(doc(db,"families",profile.familyId,"members",kidId), { phone });
     showToast("Settings saved");
+  },
+  saveWeeklyAmount: async () => {
+    const kidId = currentKidId();
+    if(!kidId) return;
+    const weeklyAmount = Number($("setWeeklyAmt").value) || 0;
+    await updateDoc(doc(db,"families",profile.familyId,"members",kidId), { weeklyAmount });
+    showToast("Weekly payout saved");
   }
 };
 
@@ -584,19 +616,38 @@ function renderChores(kidChores, kidLedgerArr){
   const pending = kidLedgerArr.filter(e=>e.status==="pending");
   const viewingKid = kids.find(k=>k.id===currentKidId());
   const forName = viewingKid ? ` for ${esc(viewingKid.name)}` : "";
-  let html = `<h2 class="section">Chores</h2><p class="sub">Tap a chore when it's done. It lands in approval until a parent okays it.</p>`;
+  const weeklyAmt = Number((viewingKid||{}).weeklyAmount) || 0;
+  const doneCount = kidChores.filter(c=>c.done).length;
+  const totalCount = kidChores.length;
+  const allDone = totalCount>0 && doneCount===totalCount;
+  const weekPending = kidLedgerArr.some(e=>e.type==="chore" && e.status==="pending");
+  let html = `<h2 class="section">Chores</h2><p class="sub">Check off chores as they're done this week. Submit once everything's complete.</p>`;
+
+  html += `<div class="card" style="margin-bottom:14px">
+    <p class="chore-title" style="margin-bottom:2px">This week's payout</p>
+    <p class="chore-amt" style="font-size:20px">${money(weeklyAmt)}</p>
+    <p class="sub" style="margin:6px 0 0">${doneCount} of ${totalCount} chore${totalCount===1?"":"s"} done</p>
+  </div>`;
 
   if(kidChores.length===0){
     html += `<div class="empty"><div class="empty-badge"><i class="ti ti-clipboard-list"></i></div><p>All clear — no chores yet.</p>${profile.role==="parent"?'<p>Add one below.</p>':'<p>Ask a parent to add some.</p>'}</div>`;
   } else {
     kidChores.forEach(c=>{
       html += `<div class="card chore-row">
-        <div class="chore-info"><p class="chore-title">${esc(c.title)}</p><p class="chore-amt">${money(c.amount)}</p></div>
-        ${profile.role==="parent"
-          ? `<button class="btn small danger" onclick="appActions.removeChore('${c.id}')">Remove</button>`
-          : `<button class="btn small" onclick="appActions.markDone('${c.id}')">Mark done</button>`}
+        <label class="chore-check">
+          <input type="checkbox" ${c.done?"checked":""} ${profile.role!=="kid"?"disabled":""} onchange="appActions.toggleChore('${c.id}')" />
+          <span class="chore-title ${c.done?"done":""}">${esc(c.title)}</span>
+        </label>
+        ${profile.role==="parent" ? `<button class="btn small danger" onclick="appActions.removeChore('${c.id}')">Remove</button>` : ""}
       </div>`;
     });
+  }
+
+  if(profile.role==="kid"){
+    const disabled = !allDone || weekPending || weeklyAmt<=0;
+    html += `<button class="btn full" style="margin-top:4px" ${disabled?"disabled":""} onclick="appActions.submitWeek()">
+      ${weekPending ? "Waiting on approval" : `Submit week — ${money(weeklyAmt)}`}
+    </button>`;
   }
 
   if(profile.role==="parent"){
@@ -604,10 +655,12 @@ function renderChores(kidChores, kidLedgerArr){
       <label>Add a chore${forName}</label>
       <div class="add-chore-form">
         <input id="newChoreTitle" placeholder="Empty dishwasher" />
-        <input id="newChoreAmt" type="number" min="0" step="0.5" placeholder="$" />
         <button class="btn small" onclick="appActions.addChore()">Add</button>
       </div>
     </div>`;
+    if(kidChores.length>0){
+      html += `<button class="btn secondary full" style="margin-top:10px" onclick="appActions.resetWeek()">Reset week</button>`;
+    }
   }
 
   if(pending.length>0){
@@ -771,6 +824,12 @@ function renderSettings(kidGoalObj){
   html += `</div>`;
 
   if(viewingKid){
+    html += `<div class="card">
+      <p class="chore-title" style="margin-bottom:6px">Weekly chore payout for ${esc(viewingKid.name)}</p>
+      <p class="sub">Paid out when every chore below is checked off and you approve it.</p>
+      <div class="field"><label>Amount ($)</label><input id="setWeeklyAmt" type="number" min="0" step="0.5" value="${viewingKid.weeklyAmount||""}" /></div>
+      <button class="btn" onclick="appActions.saveWeeklyAmount()">Save</button>
+    </div>`;
     html += `<div class="card">
       <p class="chore-title" style="margin-bottom:6px">Savings goal for ${esc(viewingKid.name)}</p>
       <div class="field"><label>Goal name</label><input id="setGoalName" value="${esc(kidGoalObj.name)}" placeholder="New bike" /></div>

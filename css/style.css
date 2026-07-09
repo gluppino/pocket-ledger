@@ -180,7 +180,7 @@ input:focus,select:focus{outline:none;border-color:var(--fg);box-shadow:0 0 0 3p
 .field{margin-bottom:14px;}
 .add-chore-form{display:flex;gap:8px;margin-top:16px;}
 .add-chore-form input:first-child{flex:1;min-width:0;}
-.add-chore-form input:last-child{flex:0 0 56px;width:56px;text-align:right;}
+.add-chore-form input:last-child{flex:0 0 44px;width:44px;text-align:right;}
 
 .section-divider{margin:28px 0 16px;padding-top:16px;border-top:1px solid var(--border);}
 

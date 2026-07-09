@@ -17,16 +17,6 @@ function generateInviteCode(){
   return code;
 }
 
-// Best-effort: this bookkeeping write must never block account creation,
-// e.g. if the parentLookup security rule hasn't been deployed yet.
-async function upsertParentLookup(email, familyId){
-  try{
-    await setDoc(doc(db, "parentLookup", email.trim().toLowerCase()), { familyId });
-  }catch(e){
-    console.warn("upsertParentLookup failed", e);
-  }
-}
-
 export async function createFamily({ familyName, parentName, email, password }){
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   const uid = cred.user.uid;
@@ -43,7 +33,6 @@ export async function createFamily({ familyName, parentName, email, password }){
   await setDoc(doc(db, "families", familyId, "members", uid), {
     name: parentName, role: "parent", email
   });
-  await upsertParentLookup(email, familyId);
 
   return { familyId, inviteCode, uid };
 }
@@ -60,7 +49,6 @@ export async function joinFamily({ inviteCode, name, email, password }){
   const uid = cred.user.uid;
   await setDoc(doc(db, "users", uid), { familyId, role: "parent", name });
   await setDoc(doc(db, "families", familyId, "members", uid), { name, role: "parent", email });
-  await upsertParentLookup(email, familyId);
   return { familyId, uid };
 }
 
@@ -117,27 +105,10 @@ export async function getUserProfile(uid){
   return snap.exists() ? snap.data() : null;
 }
 
-// Backfills parentLookup for accounts created before that collection existed.
-// Called on successful parent login; failures are non-fatal (best effort).
-export async function ensureParentLookup(uid, familyId){
-  try{
-    const snap = await getDoc(doc(db, "families", familyId, "members", uid));
-    const email = snap.exists() ? snap.data().email : null;
-    if(email) await upsertParentLookup(email, familyId);
-  }catch(e){
-    console.warn("ensureParentLookup failed", e);
-  }
-}
-
-// Verifies the email + family join code refer to the same family, then
-// triggers Firebase Auth's built-in password reset email. There is no
-// transactional email service involved — Firebase sends this itself.
-export async function requestPasswordReset(email, inviteCode){
-  const familyId = await lookupFamilyByInviteCode(inviteCode);
-  const emailLower = email.trim().toLowerCase();
-  const snap = await getDoc(doc(db, "parentLookup", emailLower));
-  if(!snap.exists() || snap.data().familyId !== familyId){
-    throw new Error("That email and join code don't match a parent account. Double check both with whoever set up the family.");
-  }
+// Triggers Firebase Auth's built-in password reset email — no transactional
+// email service involved, Firebase sends this itself. The emailed link is
+// the verification step (only someone with inbox access can complete a
+// reset), so there's no separate cross-check before sending it.
+export async function requestPasswordReset(email){
   await sendPasswordResetEmail(auth, email.trim());
 }

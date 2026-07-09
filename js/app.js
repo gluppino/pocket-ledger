@@ -8,7 +8,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   createFamily, joinFamily, loginParent, logout, getUserProfile,
-  ensureParentLookup, requestPasswordReset, claimKidProfile
+  requestPasswordReset, claimKidProfile
 } from "./auth.js";
 
 const $ = (id) => document.getElementById(id);
@@ -144,7 +144,7 @@ $("forgot-password-form").onsubmit = async (e) => {
   $("forgot-password-error").classList.add("hide");
   $("forgot-password-success").classList.add("hide");
   try{
-    await requestPasswordReset(f.email.value.trim(), f.inviteCode.value.trim());
+    await requestPasswordReset(f.email.value.trim());
     $("forgot-password-success").textContent = "Check your email for a link to set a new password.";
     $("forgot-password-success").classList.remove("hide");
     f.reset();
@@ -216,7 +216,6 @@ onAuthStateChanged(auth, async (user) => {
   selectedKidId = null;
   attachListeners(profile.familyId);
   showScreen("screen-app");
-  if(profile.role === "parent") ensureParentLookup(user.uid, profile.familyId);
 });
 
 function cleanupListeners(){

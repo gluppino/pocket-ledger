@@ -27,18 +27,6 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
-    // parentLookup/{emailLowercased} -> { familyId }
-    // Public read so a signed-out parent doing "forgot password" can verify
-    // their email + join code belong to the same family before we trigger
-    // Firebase's built-in reset email. Contains no private data (mirrors
-    // inviteCodes above). Write is allowed for any signed-in user since a
-    // mismatched/malicious write only affects which address a standard
-    // Firebase reset email might later be sent to, not account access.
-    match /parentLookup/{email} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
     // users/{uid} -> { familyId, role }
     match /users/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;

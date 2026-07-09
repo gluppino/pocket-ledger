@@ -90,10 +90,13 @@ export async function claimKidProfile(name, inviteCode){
   const uid = auth.currentUser.uid;
 
   const membersRef = collection(db, "families", familyId, "members");
-  const kidsSnap = await getDocs(query(membersRef, where("role", "==", "kid")));
-  const match = kidsSnap.docs.find(d =>
-    !d.data().archived && (d.data().name || "").trim().toLowerCase() === nameLower
-  );
+  // The query must itself constrain on `archived` (not just filter client-side
+  // after the fact) — Firestore's security rules reject a list query upfront
+  // if it can't prove every potential match satisfies the rule, and the rule
+  // requires archived != true. Matching the query shape to the rule lets
+  // Firestore prove it and allow the read.
+  const kidsSnap = await getDocs(query(membersRef, where("role", "==", "kid"), where("archived", "==", false)));
+  const match = kidsSnap.docs.find(d => (d.data().name || "").trim().toLowerCase() === nameLower);
 
   let kidId;
   if(match){
